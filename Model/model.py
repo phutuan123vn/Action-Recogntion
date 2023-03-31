@@ -216,8 +216,8 @@ class ModelSTGCN(nn.Module):
 
         # global pooling
         x = F.avg_pool2d(x, x.size()[2:])
-        # x = x.view(N, M, -1, 1, 1).mean(dim=1)
-        x = x.view(N, 1, -1, 1, 1).mean(dim=1)
+        # # x = x.view(N, M, -1, 1, 1).mean(dim=1)
+        # x = x.view(N, 1, -1, 1, 1).mean(dim=1)
 
         # prediction
         x = self.fcn(x)
