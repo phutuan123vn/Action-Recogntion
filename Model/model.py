@@ -114,10 +114,11 @@ class STGCNBlock(nn.Module):
                  out_channels,
                  A,
                  stride=1,
+                 dilation=1,
                  residual=True):
         super().__init__()
         self.gcn = unit_gcn(in_channels, out_channels, A)
-        self.tcn = unit_tcn(out_channels, out_channels, 9, stride=stride)
+        self.tcn = unit_tcn(out_channels, out_channels, 9, stride=stride,dilation=dilation)
         self.relu = nn.ReLU()
         if not residual:
             self.residual = lambda x: 0
@@ -193,7 +194,7 @@ class ModelSTGCN(nn.Module):
         # data normalization
         # have instance of person
         # N, C, T, V, M = x.size()
-        # x = x.permute(0, 4, 3, 1, 2).contiguous()
+        # x = x.permute(0, 4, 3, 1, 2).contiguous() # V C T
         # x = x.view(N * M, V * C, T)
         # x = self.data_bn(x)
         # x = x.view(N, M, V, C, T)
@@ -202,13 +203,13 @@ class ModelSTGCN(nn.Module):
 
         # dont have instance of person
 
-        N, C, T, V = x.size()
-        x = x.permute(0, 3, 1, 2).contiguous()
+        N,T,V,C = x.size()
+        x = x.permute(0, 2, 3, 1).contiguous() # N V C T
         x = x.view(N , V * C, T)
         x = self.data_bn(x)
         x = x.view(N, V, C, T)
         x = x.permute(0, 2, 3, 1).contiguous()
-        x = x.view(N , C, T, V)
+        # x = x.view(N , C, T, V)
         # forwad
         for gcn in (self.st_gcn_networks):
             x = gcn(x)
