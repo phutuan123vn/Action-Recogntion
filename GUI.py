@@ -49,9 +49,11 @@ def resize_img(img, size, padColor=0):
 class My_GUI(QMainWindow):
     def __init__(self):
         super(My_GUI, self).__init__()
-        uic.loadUi('form.ui',self)
+        uic.loadUi('form1.ui',self)
         self.show()
-
+        self.msg = QMessageBox()
+        self.keypoints = []
+        self.msg.setWindowTitle('Error')
         self.path_folder = osp.join('Image', 'img_{:05d}.jpg')
         self.cnt=0
         self.det_config = 'Pose/yolox_s_8x8_300e_coco.py'
@@ -64,33 +66,27 @@ class My_GUI(QMainWindow):
                                 (8, 10), (1, 2), (0, 1), (0, 2), (1, 3), (2, 4),
                                 (3, 5), (4, 6)]
 
-        self.label = np.zeros(17)
-        self.ano = []
+        # self.label = None
+        self.ano_lst = []
+        self.anno = []
         self.slider_frame_no.valueChanged.connect(self.frame_change)
-        self.checkBox_1.stateChanged.connect(self.r_shoulder)
-        self.checkBox_2.stateChanged.connect(self.r_elbow)
-        self.checkBox_3.stateChanged.connect(self.r_wrist)
-        self.checkBox_4.stateChanged.connect(self.r_hip)
-        self.checkBox_5.stateChanged.connect(self.r_knee)
-        self.checkBox_6.stateChanged.connect(self.r_ankle)
-        self.checkBox_15.stateChanged.connect(self.l_shoulder)
-        self.checkBox_18.stateChanged.connect(self.l_elbow)
-        self.checkBox_17.stateChanged.connect(self.l_wrist)
-        self.checkBox_7.stateChanged.connect(self.l_hip)
-        self.checkBox_19.stateChanged.connect(self.l_knee)
-        self.checkBox_16.stateChanged.connect(self.l_ankle)
         self.btn_load_video.clicked.connect(self.load_video)
         self.btn_load_image.clicked.connect(self.load_image)
         self.btn_save.clicked.connect(self.save)
         self.btn_export.clicked.connect(self.export)
         self.btn_detect_vid.clicked.connect(self.detect)
         self.btn_remove_last.clicked.connect(self.remove)
+        self.btn_Append.clicked.connect(self.Add_anno)
+    
+    def Add_anno(self):
+        return
     
     def remove(self):
-        if len(self.ano)==0:
+        if len(self.ano_lst)==0 or len(self.anno == 0):
             return
-        self.ano.pop()
-        self.Text_display.setText(f'len ano: {len(self.ano)} \nsave:{self.ano}')
+        self.ano_lst.pop()
+        self.anno.pop()
+        self.Text_display.setText(f'len ano: {len(self.ano_lst)} \nsave:{self.ano_lst}')
     
     def detect(self):
         ## detect pose
@@ -185,17 +181,15 @@ class My_GUI(QMainWindow):
             start = keypoints[edge[0]]
             end = keypoints[edge[1]]
             image = cv2.line(image, (int(start[0]), int(start[1])), (int(end[0]), int(end[1])), (255,255,0), 2)
-
         for i in range(17):
             (x, y) = keypoints[i]
-            if self.label[i] == 0:
-                color = (255, 255, 255)
-            elif self.label[i] == 1:
-                color = (0, 0, 255)
-            elif self.label[i] == 2:
-                color = (255, 0, 0)
-
-            image = cv2.circle(image, (int(x), int(y)), 4, color, -1)
+        #     if self.label[i] == 0:
+        #         color = (255, 255, 255)
+        #     elif self.label[i] == 1:
+        #         color = (0, 0, 255)
+        #     elif self.label[i] == 2:
+        #         color = (255, 0, 0)
+            image = cv2.circle(image, (int(x), int(y)), 4, (255, 255, 255), -1)
 
         image = cv2.rectangle(image, (int(bbox[0]), int(bbox[1])),(int(bbox[2]), int(bbox[3])) , (0,255,0), 1)
         return image
@@ -209,238 +203,29 @@ class My_GUI(QMainWindow):
         # self.size_image = image.shape[:2]
         image_Qt = QImage(image, image.shape[1], image.shape[0], image.strides[0], QImage.Format_RGB888)
         self.Label_Img_Show.setPixmap(QPixmap.fromImage(image_Qt))
-    
-
-    def r_shoulder(self, state):
-        index = 6
-        class_name = self.Cbox_RShoulder.currentText()
-
-        if state == QtCore.Qt.Checked:
-            if class_name == 'Class1':
-                self.label[index] = 1
-
-            elif class_name == 'Class2':
-                self.label[index] = 2
-        else:
-            self.label[index] = 0
-
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
-
-        self.Text_display.setText(f'label: {self.label}')
-        self.image_set(frame_show)
-
-
-    def r_elbow(self, state):
-        index = 8
-        class_name = self.Cbox_RElbow.currentText()
-
-        if state == QtCore.Qt.Checked:
-            if class_name == 'Class1':
-                self.label[index] = 1
-
-            elif class_name == 'Class2':
-                self.label[index] = 2
-        else:
-            self.label[index] = 0
-
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
-
-        self.Text_display.setText(f'label: {self.label}')
-        self.image_set(frame_show)
-
-    def r_wrist(self, state):
-        index = 10
-        class_name = self.Cbox_RWrist.currentText()
-
-        if state == QtCore.Qt.Checked:
-            if class_name == 'Class1':
-                self.label[index] = 1
-
-            elif class_name == 'Class2':
-                self.label[index] = 2
-        else:
-            self.label[index] = 0
-
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
-
-        self.Text_display.setText(f'label: {self.label}')
-        self.image_set(frame_show)
-
-    def r_hip(self, state):
-        index = 12
-        class_name = self.Cbox_RHip.currentText()
-
-        if state == QtCore.Qt.Checked:
-            if class_name == 'Class1':
-                self.label[index] = 1
-
-            elif class_name == 'Class2':
-                self.label[index] = 2
-        else:
-            self.label[index] = 0
-
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
-
-        self.Text_display.setText(f'label: {self.label}')
-        self.image_set(frame_show)
-
-    def r_knee(self, state):
-        index = 14
-        class_name = self.Cbox_RKnee.currentText()
-
-        if state == QtCore.Qt.Checked:
-            if class_name == 'Class1':
-                self.label[index] = 1
-
-            elif class_name == 'Class2':
-                self.label[index] = 2
-        else:
-            self.label[index] = 0
-
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
-
-        self.Text_display.setText(f'label: {self.label}')
-        self.image_set(frame_show)
-
-
-    def r_ankle(self, state):
-        index = 16
-        class_name = self.Cbox_RAnkle.currentText()
-
-        if state == QtCore.Qt.Checked:
-            if class_name == 'Class1':
-                self.label[index] = 1
-
-            elif class_name == 'Class2':
-                self.label[index] = 2
-        else:
-            self.label[index] = 0
-
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
-
-        self.Text_display.setText(f'label: {self.label}')
-        self.image_set(frame_show)
-
-    def l_shoulder(self, state):
-        index = 5
-        class_name = self.Cbox_LShoulder.currentText()
-
-        if state == QtCore.Qt.Checked:
-            if class_name == 'Class1':
-                self.label[index] = 1
-
-            elif class_name == 'Class2':
-                self.label[index] = 2
-        else:
-            self.label[index] = 0
-
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
-
-        self.Text_display.setText(f'label: {self.label}')
-        self.image_set(frame_show)
-
-    def l_elbow(self, state):
-        index = 7
-        class_name = self.Cbox_LElbow.currentText()
-
-        if state == QtCore.Qt.Checked:
-            if class_name == 'Class1':
-                self.label[index] = 1
-
-            elif class_name == 'Class2':
-                self.label[index] = 2
-        else:
-            self.label[index] = 0
-
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
-
-        self.Text_display.setText(f'label: {self.label}')
-        self.image_set(frame_show)
-
-    def l_wrist(self, state):
-        index = 9
-        class_name = self.Cbox_LWrist.currentText()
-
-        if state == QtCore.Qt.Checked:
-            if class_name == 'Class1':
-                self.label[index] = 1
-
-            elif class_name == 'Class2':
-                self.label[index] = 2
-        else:
-            self.label[index] = 0
-
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
-
-        self.Text_display.setText(f'label: {self.label}')
-        self.image_set(frame_show)
-
-    def l_hip(self, state):
-        index = 11
-        class_name = self.Cbox_LHip.currentText()
-
-        if state == QtCore.Qt.Checked:
-            if class_name == 'Class1':
-                self.label[index] = 1
-
-            elif class_name == 'Class2':
-                self.label[index] = 2
-        else:
-            self.label[index] = 0
-
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
-
-        self.Text_display.setText(f'label: {self.label}')
-        self.image_set(frame_show)
-
-    def l_knee(self, state):
-        index = 13
-        class_name = self.Cbox_LKnee.currentText()
-
-        if state == QtCore.Qt.Checked:
-            if class_name == 'Class1':
-                self.label[index] = 1
-
-            elif class_name == 'Class2':
-                self.label[index] = 2
-        else:
-            self.label[index] = 0
-
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
-
-        self.Text_display.setText(f'label: {self.label}')
-        self.image_set(frame_show)
-
-    def l_ankle(self, state):
-        index = 15
-        class_name = self.Cbox_LAnkle.currentText()
-
-        if state == QtCore.Qt.Checked:
-            if class_name == 'Class1':
-                self.label[index] = 1
-
-            elif class_name == 'Class2':
-                self.label[index] = 2
-        else:
-            self.label[index] = 0
-
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
-
-        self.Text_display.setText(f'label: {self.label}')
-        self.image_set(frame_show)
 
     def save(self):
-        self.ano.append({'keypoints': self.skeleton_features, 'label':self.label, 'image size': self.size_image})
-        if self.usingimage:
-            print(f'Save image from: {self.image_path}')
+        self.label = self.Label_Edit.text()
+        if self.label == '':
+            self.msg.setText('Please input a label to save')
+            self.msg.exec_()
         else:
-            self.frame_change(self.frame_no)
-        self.Text_display.setText(f'len ano: {len(self.ano)} \nsave:{self.ano}')
+            self.anno.append(self.skeleton_features)
+            self.ano_lst.append({'keypoints': self.skeleton_features, 'label':self.label, 'image size': self.size_image})
+            if self.usingimage:
+                print(f'Save image from: {self.image_path}')
+            else:
+                self.frame_change(self.frame_no)
+            self.Text_display.setText(f'len ano: {len(self.ano_lst)} \nsave:{self.ano_lst}')
 
     def export(self):
+        self.label = self.Label_Edit.text()
         file_name = self.Edit_file_name.text()
-
-        pd.to_pickle(self.ano, 'Data/pickle_file/'+file_name)
+        if self.label == '' or file_name == '':
+            self.msg.setText('Please input a label and path to save')
+            self.msg.exec_()
+        else:
+            pd.to_pickle(self.anno, 'Data/pickle_file/'+file_name)
 
 def main():
     app = QApplication([])
