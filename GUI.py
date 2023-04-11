@@ -76,10 +76,14 @@ class My_GUI(QMainWindow):
         self.btn_export.clicked.connect(self.export)
         self.btn_detect_vid.clicked.connect(self.detect)
         self.btn_remove_last.clicked.connect(self.remove)
-        self.btn_Append.clicked.connect(self.Add_anno)
+        self.btn_tolist.clicked.connect(self.Add_anno)
     
     def Add_anno(self):
-        return
+        frame = len(self.anno)
+        pose = np.zeros((1,frame,17,3),dtype=np.float32)
+        for idex, anno in enumerate(self.anno):
+            pose[0][idex] = anno
+        self.ano_lst.append(pose)
     
     def remove(self):
         if len(self.ano_lst)==0 or len(self.anno == 0):

@@ -267,7 +267,7 @@
      <string>Label Action</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="btn_Append">
+   <widget class="QPushButton" name="btn_tolist">
     <property name="geometry">
      <rect>
       <x>140</x>
@@ -277,7 +277,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Append</string>
+     <string>To list</string>
     </property>
    </widget>
   </widget>
