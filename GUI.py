@@ -69,6 +69,8 @@ class My_GUI(QMainWindow):
         # self.label = None
         self.ano_lst = []
         self.anno = []
+        # self.LineEdit.setValidator()
+        self.Label_Edit.setValidator(QIntValidator())
         self.slider_frame_no.valueChanged.connect(self.frame_change)
         self.btn_load_video.clicked.connect(self.load_video)
         self.btn_load_image.clicked.connect(self.load_image)
@@ -86,11 +88,11 @@ class My_GUI(QMainWindow):
         self.ano_lst.append(pose)
     
     def remove(self):
-        if len(self.ano_lst)==0 or len(self.anno == 0):
+        if len(self.ano_lst) == 0 or len(self.anno) == 0:
             return
         self.ano_lst.pop()
         self.anno.pop()
-        self.Text_display.setText(f'len ano: {len(self.ano_lst)} \nsave:{self.ano_lst}')
+        self.Text_display.setText(f'len ano: {len(self.ano_lst)} \nsave:{self.anno}')
     
     def detect(self):
         ## detect pose
@@ -209,18 +211,18 @@ class My_GUI(QMainWindow):
         self.Label_Img_Show.setPixmap(QPixmap.fromImage(image_Qt))
 
     def save(self):
-        self.label = self.Label_Edit.text()
-        if self.label == '':
-            self.msg.setText('Please input a label to save')
-            self.msg.exec_()
+        # self.label = self.Label_Edit.text()
+        # if self.label == '':
+        #     self.msg.setText('Please input a label to save')
+        #     self.msg.exec_()
+        # else:
+        self.anno.append(self.skeleton_features)
+        # self.ano_lst.append({'keypoints': self.skeleton_features, 'label':self.label, 'image size': self.size_image})
+        if self.usingimage:
+            print(f'Save image from: {self.image_path}')
         else:
-            self.anno.append(self.skeleton_features)
-            self.ano_lst.append({'keypoints': self.skeleton_features, 'label':self.label, 'image size': self.size_image})
-            if self.usingimage:
-                print(f'Save image from: {self.image_path}')
-            else:
-                self.frame_change(self.frame_no)
-            self.Text_display.setText(f'len ano: {len(self.ano_lst)} \nsave:{self.ano_lst}')
+            self.frame_change(self.frame_no)
+        self.Text_display.setText(f'len ano: {len(self.ano_lst)} \nsave:{self.anno}')
 
     def export(self):
         self.label = self.Label_Edit.text()
