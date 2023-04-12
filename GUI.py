@@ -84,6 +84,8 @@ class My_GUI(QMainWindow):
         # self.label = None
         self.ano_lst = []
         self.anno = []
+        # self.image_size = []
+        # self.lst_size = []
         # self.skeleton_features
         # self.LineEdit.setValidator()
         self.Label_Edit.setValidator(QIntValidator())
@@ -165,6 +167,7 @@ class My_GUI(QMainWindow):
         self.usingimage=False
         self.Video = cv2.VideoCapture(self.Video_path)
         _, self.frame_original = self.Video.read()
+        self.size_image = (self.frame_original.shape[0],self.frame_original.shape[1])
         self.frame_original.flags.writeable = False
         # self.image_set(self.frame_original)
         # self.Label_Img_Show.setPixmap(QPixmap.fromImage(frame_show))
