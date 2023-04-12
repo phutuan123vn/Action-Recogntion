@@ -10,7 +10,9 @@ import sys
 import pandas as pd
 import time
 import os.path as osp
-from inference_topdown_pose import inference_img
+from Pose.Hrnet import Hrnet
+from Pose.Yolov7 import Yolov7
+# from inference_topdown_pose import inference_img
 
 def resize_img(img, size, padColor=0):
     h, w = img.shape[:2]
@@ -46,20 +48,33 @@ def resize_img(img, size, padColor=0):
     scaled_img = cv2.copyMakeBorder(scaled_img, pad_top, pad_bot, pad_left, pad_right, borderType=cv2.BORDER_CONSTANT, value=padColor)
     return scaled_img
 
+def inference_image(img,detect:Yolov7,pose:Hrnet):
+    det_results = detect.inference(img)
+    pose_results = pose.inference_from_bbox(img,det_results)
+    return pose_results
+    
 class My_GUI(QMainWindow):
     def __init__(self):
         super(My_GUI, self).__init__()
         uic.loadUi('form1.ui',self)
         self.show()
+        
+        
         self.msg = QMessageBox()
         self.keypoints = []
         self.msg.setWindowTitle('Error')
         self.path_folder = osp.join('Image', 'img_{:05d}.jpg')
         self.cnt=0
-        self.det_config = 'Pose/yolox_s_8x8_300e_coco.py'
-        self.det_checkpoint = 'Pose/yolox_s_8x8_300e_coco_20211121_095711-4592a793.pth'
-        self.pose_config = 'Pose/hrnet_w48_coco_256x192.py'
-        self.pose_checkpoint = 'Pose/hrnet_w48_coco_256x192-b9e0b3ab_20200708.pth'
+        self.Hrnet = Hrnet(engine_path='Pose/Hrnet48_fp32.trt')
+        self.Hrnet.get_fps()
+        self.Hrnet.destory()
+        self.Yolov7 = Yolov7(engine_path='Pose/yolov7_fp16.trt')
+        self.Yolov7.get_fps()
+        self.Hrnet.destory()
+        # self.det_config = 'Pose/yolox_s_8x8_300e_coco.py'
+        # self.det_checkpoint = 'Pose/yolox_s_8x8_300e_coco_20211121_095711-4592a793.pth'
+        # self.pose_config = 'Pose/hrnet_w48_coco_256x192.py'
+        # self.pose_checkpoint = 'Pose/hrnet_w48_coco_256x192-b9e0b3ab_20200708.pth'
 
         self.skeleton_edge = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 12),
                                 (5, 11), (6, 12), (5, 6), (5, 7), (6, 8), (7, 9),
@@ -69,6 +84,7 @@ class My_GUI(QMainWindow):
         # self.label = None
         self.ano_lst = []
         self.anno = []
+        # self.skeleton_features
         # self.LineEdit.setValidator()
         self.Label_Edit.setValidator(QIntValidator())
         self.slider_frame_no.valueChanged.connect(self.frame_change)
@@ -76,9 +92,10 @@ class My_GUI(QMainWindow):
         self.btn_load_image.clicked.connect(self.load_image)
         self.btn_save.clicked.connect(self.save)
         self.btn_export.clicked.connect(self.export)
-        self.btn_detect_vid.clicked.connect(self.detect)
+        # self.btn_detect_vid.clicked.connect(self.detect)
         self.btn_remove_last.clicked.connect(self.remove)
         self.btn_tolist.clicked.connect(self.Add_anno)
+        self.btn_remove_frame.clicked.connect(self.remove_frame)
     
     def Add_anno(self):
         frame = len(self.anno)
@@ -87,32 +104,35 @@ class My_GUI(QMainWindow):
             pose[0][idex] = anno
         self.ano_lst.append(pose)
     
+    def remove_frame(self):
+        if len(self.anno) == 0:
+            return
+        self.anno.pop()
+        self.Text_display.setText(f'Length Frame: {len(self.anno)} \nsave:{self.anno}')
+        
     def remove(self):
-        if len(self.ano_lst) == 0 or len(self.anno) == 0:
+        if len(self.ano_lst) == 0:
             return
         self.ano_lst.pop()
-        self.anno.pop()
-        self.Text_display.setText(f'len ano: {len(self.ano_lst)} \nsave:{self.anno}')
+        self.Text_display.setText(f'Length anno: {len(self.ano_lst)} \nsave:{self.ano_lst}')
     
     def detect(self):
         ## detect pose
         # start = time.time()
-        # self.frame_original.flags.writeable = False
-        # self.size_image = self.frame_original.shape[:2]
-        # _, self.pose_result = inference_img(self.det_config, self.det_checkpoint, self.pose_config,
-        #                                                   self.pose_checkpoint, self.frame_original)
-        # print(time.time() - start)
-        # frame_show = self.vis_pose(self.frame_original, self.pose_result)
-        # self.image_set(frame_show)
+        if self.usingimage:
+            return
+        self.size_image = self.frame_original.shape[:2]
+        self.frame_original.flags.writeable = False
+        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
+        frame_show = self.vis_pose(self.frame_original, self.pose_result)
+        self.image_set(frame_show)
         #################
-        # if not self.usingimage:
-        #     return
-        self.frame_no +=1
-        frame_path = self.path_folder.format(self.cnt + 1)
-        self.cnt +=1
-        cv2.imwrite(frame_path, self.frame_original)
-        self.slider_frame_no.setValue(self.cnt)
-        self.frame_change(self.frame_no)
+        # self.frame_no +=1
+        # frame_path = self.path_folder.format(self.cnt + 1)
+        # self.cnt +=1
+        # cv2.imwrite(frame_path, self.frame_original)
+        # self.slider_frame_no.setValue(self.cnt)
+        # self.frame_change(self.frame_no)
         
 
     def load_image(self):
@@ -125,8 +145,9 @@ class My_GUI(QMainWindow):
         self.size_image = self.frame_original.shape[:2]
         self.frame_original.flags.writeable = False
         start = time.time()
-        _, self.pose_result = inference_img(self.det_config, self.det_checkpoint, self.pose_config,
-                                                          self.pose_checkpoint, self.frame_original)
+        # _, self.pose_result = inference_img(self.det_config, self.det_checkpoint, self.pose_config,
+        #                                                   self.pose_checkpoint, self.frame_original)
+        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
         print(time.time() - start)
         frame_show = self.vis_pose(self.frame_original, self.pose_result)
         self.image_set(frame_show)
@@ -145,10 +166,13 @@ class My_GUI(QMainWindow):
         self.Video = cv2.VideoCapture(self.Video_path)
         _, self.frame_original = self.Video.read()
         self.frame_original.flags.writeable = False
-        self.image_set(self.frame_original)
+        # self.image_set(self.frame_original)
         # self.Label_Img_Show.setPixmap(QPixmap.fromImage(frame_show))
         self.total_frame = int(self.Video.get(cv2.CAP_PROP_FRAME_COUNT))
-        _, self.curr_frame = self.Video.read()
+        # _, self.curr_frame = self.Video.read()
+        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
+        frame_show = self.vis_pose(self.frame_original, self.pose_result)
+        self.image_set(frame_show)
         self.slider_frame_no.setRange(0, int(self.total_frame) - 1)
         self.slider_frame_no.setValue(0)
         # self.image_set(self.curr_frame)
@@ -163,7 +187,9 @@ class My_GUI(QMainWindow):
         # frame_show = self.vis_pose(self.frame_original, self.pose_result)
         self.frame_original.flags.writeable = False
         self.frame_no = value
-        self.image_set(self.frame_original)
+        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
+        frame_show = self.vis_pose(self.frame_original, self.pose_result)
+        self.image_set(frame_show)
         # self.Label_Img_Show.setPixmap(QPixmap.fromImage(self.frame_original))
         # self.image_set(frame)
         # self.frame_no_txt.setText(str(value))
@@ -173,6 +199,8 @@ class My_GUI(QMainWindow):
         bbox_score = []
         keypoints = []
         keypoints_score = []
+        if pose_result is None:
+            return image
         for pos in pose_result:
             bbox.append(pos['bbox'][:4])
             bbox_score.append(pos['bbox'][4])
@@ -204,7 +232,8 @@ class My_GUI(QMainWindow):
     def image_set(self, image):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         if image.shape[0] >640:
-            image = imutils.resize(image, height=640)
+            # image = imutils.resize(image, height=640)
+            image = resize_img(image,(640,480))
         # image = resize_img(image,(640,480))
         # self.size_image = image.shape[:2]
         image_Qt = QImage(image, image.shape[1], image.shape[0], image.strides[0], QImage.Format_RGB888)
@@ -216,13 +245,16 @@ class My_GUI(QMainWindow):
         #     self.msg.setText('Please input a label to save')
         #     self.msg.exec_()
         # else:
+        # if len(self.skeleton_features) == 0:
+        #     self.msg.setText(f"Frame don't have the skeleton" )
+        #     self.msg.exec_()
         self.anno.append(self.skeleton_features)
         # self.ano_lst.append({'keypoints': self.skeleton_features, 'label':self.label, 'image size': self.size_image})
         if self.usingimage:
             print(f'Save image from: {self.image_path}')
         else:
             self.frame_change(self.frame_no)
-        self.Text_display.setText(f'len ano: {len(self.ano_lst)} \nsave:{self.anno}')
+        self.Text_display.setText(f'Length Frame: {len(self.anno)} \nsave:{self.anno}')
 
     def export(self):
         self.label = self.Label_Edit.text()
