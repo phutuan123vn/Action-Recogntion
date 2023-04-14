@@ -69,7 +69,7 @@ class Yolov7(object):
         return data
 
 
-    def inference(self, origin_img):
+    def inference(self, origin_img,threshold = 0.5):
         # origin_img = cv2.imread(img_path)
         origin_img = cv2.cvtColor(origin_img, cv2.COLOR_BGR2RGB)
         image, ratio, dwdh = self.letterbox(origin_img, auto=False)
@@ -86,7 +86,10 @@ class Yolov7(object):
         if num > 0:
             final_boxes, final_scores, final_cls_inds = (final_boxes[:num] - dwdh)/ ratio, final_scores[:num], final_cls_inds[
                                                                                                        :num]
-            return final_boxes, final_scores, final_cls_inds
+            idx = []
+            for ind,score in enumerate(final_scores):
+                if score > threshold: idx.append(ind)
+            return final_boxes[idx], final_scores[idx], final_cls_inds[idx]
         else:
             return [], [], []
 

@@ -166,7 +166,7 @@ class Hrnet(object):
         # pose_result = np.column_stack((peaks, max_vals))
         return peaks, max_vals
 
-    def inference_from_bbox(self, image, detections, search_region_ratio=0.2):
+    def inference_from_bbox(self, image, detections, search_region_ratio=0.2,score_threshold=0.5):
         pose_results = []
         full_height, full_width = image.shape[:2]
         boxes, scores, class_ids = detections
@@ -177,13 +177,13 @@ class Hrnet(object):
         scores = scores[person_class_idx]
         if len(scores) == 0:
             return pose_results.append({'bbox':np.zeros(4), 'keypoints': np.zeros((17, 3))})
+        # score = [x for x in ]
         area = []
         for (x1, y1, x2, y2) in boxes:
             area.append((x2-x1)*(y2-y1))
         idx_best = np.array(area).argmax()
         box = boxes[idx_best]
         score = scores[idx_best]
-
         x1, y1, x2, y2 = box
         box_width, box_height = x2 - x1, y2 - y1
 

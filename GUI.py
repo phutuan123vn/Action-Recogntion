@@ -10,6 +10,7 @@ import sys
 import pandas as pd
 import time
 import os.path as osp
+import tensorrt
 from Pose.Hrnet import Hrnet
 from Pose.Yolov7 import Yolov7
 # from inference_topdown_pose import inference_img

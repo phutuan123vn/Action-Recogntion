@@ -1,1 +1,2 @@
-from . import Hrnet,Yolov7
+from .Yolov7 import Yolov7
+from .Hrnet import Hrnet
