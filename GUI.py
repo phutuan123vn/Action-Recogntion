@@ -95,16 +95,27 @@ class My_GUI(QMainWindow):
         self.btn_save.clicked.connect(self.save)
         self.btn_export.clicked.connect(self.export)
         # self.btn_detect_vid.clicked.connect(self.detect)
-        self.btn_remove_last.clicked.connect(self.remove)
-        self.btn_tolist.clicked.connect(self.Add_anno)
+        self.btn_remove_list.clicked.connect(self.remove_list)
+        self.btn_tolist.clicked.connect(self.save_action)
         self.btn_remove_frame.clicked.connect(self.remove_frame)
     
-    def Add_anno(self):
+    def save_action(self):
+        self.label = self.Label_Edit.text()
         frame = len(self.anno)
-        pose = np.zeros((1,frame,17,3),dtype=np.float32)
-        for idex, anno in enumerate(self.anno):
-            pose[0][idex] = anno
-        self.ano_lst.append(pose)
+        if self.label == '' or frame == 0:
+            self.msg.setText('Missing Frame or Label to save')
+            self.msg.exec_()
+        else:
+            pose = np.zeros((1,frame,17,3),dtype=np.float32)
+            for idex, anno in enumerate(self.anno):
+                pose[0][idex] = anno
+            temp = dict()
+            temp['kp'] = pose
+            temp['label'] = self.label
+            temp['img_shape'] = self.size_image
+            temp['total_frame'] = frame
+            self.ano_lst.append(temp)
+            self.Text_display.setText(f'Length anno: {len(self.ano_lst)} \nsave:{self.ano_lst}')
     
     def remove_frame(self):
         if len(self.anno) == 0:
@@ -112,7 +123,7 @@ class My_GUI(QMainWindow):
         self.anno.pop()
         self.Text_display.setText(f'Length Frame: {len(self.anno)} \nsave:{self.anno}')
         
-    def remove(self):
+    def remove_list(self):
         if len(self.ano_lst) == 0:
             return
         self.ano_lst.pop()
@@ -144,7 +155,8 @@ class My_GUI(QMainWindow):
         self.frame_original= cv2.imread(self.image_path)
         print(f'Load image from: {self.image_path}')
         self.usingimage=True
-        self.size_image = self.frame_original.shape[:2]
+        h,w = self.frame_original.shape[:2]
+        self.size_image = (w,h)
         self.frame_original.flags.writeable = False
         start = time.time()
         # _, self.pose_result = inference_img(self.det_config, self.det_checkpoint, self.pose_config,
@@ -167,7 +179,7 @@ class My_GUI(QMainWindow):
         self.usingimage=False
         self.Video = cv2.VideoCapture(self.Video_path)
         _, self.frame_original = self.Video.read()
-        self.size_image = (self.frame_original.shape[0],self.frame_original.shape[1])
+        self.size_image = (self.frame_original.shape[1],self.frame_original.shape[0])
         self.frame_original.flags.writeable = False
         # self.image_set(self.frame_original)
         # self.Label_Img_Show.setPixmap(QPixmap.fromImage(frame_show))
@@ -189,7 +201,8 @@ class My_GUI(QMainWindow):
         # # print(time.time() - start)
         # frame_show = self.vis_pose(self.frame_original, self.pose_result)
         self.frame_original.flags.writeable = False
-        self.frame_no = value
+        # self.frame_no = value
+        self.Text_frame_no.setText(str(value))
         self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
         frame_show = self.vis_pose(self.frame_original, self.pose_result)
         self.image_set(frame_show)
@@ -248,22 +261,23 @@ class My_GUI(QMainWindow):
         #     self.msg.setText('Please input a label to save')
         #     self.msg.exec_()
         # else:
-        # if len(self.skeleton_features) == 0:
-        #     self.msg.setText(f"Frame don't have the skeleton" )
-        #     self.msg.exec_()
+        if len(self.skeleton_features) == 0:
+            self.msg.setText(f"Frame don't have the skeleton" )
+            self.msg.exec_()
         self.anno.append(self.skeleton_features)
         # self.ano_lst.append({'keypoints': self.skeleton_features, 'label':self.label, 'image size': self.size_image})
         if self.usingimage:
             print(f'Save image from: {self.image_path}')
         else:
+            self.frame_no = self.slider_frame_no.value() + 1
+            self.slider_frame_no.setValue(self.frame_no)
             self.frame_change(self.frame_no)
         self.Text_display.setText(f'Length Frame: {len(self.anno)} \nsave:{self.anno}')
 
     def export(self):
-        self.label = self.Label_Edit.text()
         file_name = self.Edit_file_name.text()
-        if self.label == '' or file_name == '':
-            self.msg.setText('Please input a label and path to save')
+        if file_name == '':
+            self.msg.setText('Please input a file name to save')
             self.msg.exec_()
         else:
             pd.to_pickle(self.anno, 'Data/pickle_file/'+file_name)

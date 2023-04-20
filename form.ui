@@ -263,7 +263,7 @@
    <widget class="QPushButton" name="btn_detect_vid">
     <property name="geometry">
      <rect>
-      <x>120</x>
+      <x>140</x>
       <y>450</y>
       <width>93</width>
       <height>29</height>
@@ -289,7 +289,7 @@
    <widget class="QPushButton" name="btn_export">
     <property name="geometry">
      <rect>
-      <x>150</x>
+      <x>140</x>
       <y>540</y>
       <width>93</width>
       <height>29</height>
@@ -531,7 +531,7 @@
     <enum>Qt::Horizontal</enum>
    </property>
   </widget>
-  <widget class="QLineEdit" name="LEdit_frame_no">
+  <widget class="QLineEdit" name="Text_frame_no">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -539,6 +539,9 @@
      <width>71</width>
      <height>26</height>
     </rect>
+   </property>
+   <property name="readOnly">
+    <bool>true</bool>
    </property>
   </widget>
   <widget class="QTextEdit" name="Text_display">

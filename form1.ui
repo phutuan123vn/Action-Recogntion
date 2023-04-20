@@ -135,7 +135,7 @@
      <string>Detect</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="btn_remove_last">
+   <widget class="QPushButton" name="btn_remove_list">
     <property name="geometry">
      <rect>
       <x>140</x>
@@ -293,6 +293,19 @@
      <string>Remove Frame</string>
     </property>
    </widget>
+   <widget class="QLineEdit" name="Text_frame_no">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>550</y>
+      <width>71</width>
+      <height>26</height>
+     </rect>
+    </property>
+    <property name="readOnly">
+     <bool>true</bool>
+    </property>
+   </widget>
   </widget>
   <widget class="QSlider" name="slider_frame_no">
    <property name="geometry">
@@ -305,16 +318,6 @@
    </property>
    <property name="orientation">
     <enum>Qt::Horizontal</enum>
-   </property>
-  </widget>
-  <widget class="QLineEdit" name="LEdit_frame_no">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>740</y>
-     <width>71</width>
-     <height>26</height>
-    </rect>
    </property>
   </widget>
   <widget class="QTextEdit" name="Text_display">
