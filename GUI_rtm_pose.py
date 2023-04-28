@@ -2,10 +2,12 @@ from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5 import uic
+from mmdeploy_runtime import PoseDetector,Detector
 import cv2
 import imutils
+from copy import deepcopy
 import numpy as np
-import copy
+# import copy
 import sys
 import pandas as pd
 import time
@@ -13,46 +15,51 @@ import os.path as osp
 import glob
 from Pose.Hrnet import Hrnet
 from Pose.Yolov7 import Yolov7
-# from inference_topdown_pose import inference_img
+det_model = Detector('rtm-pose/rtmdet-nano/','cuda')
+pose_model = PoseDetector('rtm-pose/rtmpose-m/','cuda')
 
-def resize_img(img, size, padColor=0):
-    h, w = img.shape[:2]
-    sh, sw = size
-    # interpolation method
-    if h > sh or w > sw: # shrinking image
-        interp = cv2.INTER_AREA
-    else: # stretching image
-        interp = cv2.INTER_CUBIC
-    # aspect ratio of image
-    aspect = w/h
-    # compute scaling and pad sizing
-    if aspect > 1: # horizontal image~
-        new_w = sw
-        new_h = np.round(new_w/aspect).astype(int)
-        pad_vert = (sh-new_h)/2
-        pad_top, pad_bot = np.floor(pad_vert).astype(int), np.ceil(pad_vert).astype(int)
-        pad_left, pad_right = 0, 0
-    elif aspect < 1: # vertical image
-        new_h = sh
-        new_w = np.round(new_h*aspect).astype(int)
-        pad_horz = (sw-new_w)/2
-        pad_left, pad_right = np.floor(pad_horz).astype(int), np.ceil(pad_horz).astype(int)
-        pad_top, pad_bot = 0, 0
-    else: # square image
-        new_h, new_w = sh, sw
-        pad_left, pad_right, pad_top, pad_bot = 0, 0, 0, 0
-    # set pad color
-    if len(img.shape) == 3 and not isinstance(padColor, (list, tuple, np.ndarray)): # color image but only one color provided
-        padColor = [padColor]*3
-    # scale and pad
-    scaled_img = cv2.resize(img, (new_w, new_h), interpolation=interp)
-    scaled_img = cv2.copyMakeBorder(scaled_img, pad_top, pad_bot, pad_left, pad_right, borderType=cv2.BORDER_CONSTANT, value=padColor)
-    return scaled_img
+def visualize(frame, keypoints, thr=0.5, resize=None):
+    skeleton = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 12), (5, 11),
+                (6, 12), (5, 6), (5, 7), (6, 8), (7, 9), (8, 10), (1, 2),
+                (0, 1), (0, 2), (1, 3), (2, 4), (3, 5), (4, 6)]
+    palette = [(255, 128, 0), (255, 153, 51), (255, 178, 102), (230, 230, 0),
+               (255, 153, 255), (153, 204, 255), (255, 102, 255),
+               (255, 51, 255), (102, 178, 255),
+               (51, 153, 255), (255, 153, 153), (255, 102, 102), (255, 51, 51),
+               (153, 255, 153), (102, 255, 102), (51, 255, 51), (0, 255, 0),
+               (0, 0, 255), (255, 0, 0), (255, 255, 255)]
+    link_color = [
+        0, 0, 0, 0, 7, 7, 7, 9, 9, 9, 9, 9, 16, 16, 16, 16, 16, 16, 16
+    ]
+    point_color = [16, 16, 16, 16, 16, 9, 9, 9, 9, 9, 9, 0, 0, 0, 0, 0, 0]
+    img = deepcopy(frame)
+    scores = keypoints[..., 2]
+    keypoints = (keypoints[..., :2]).astype(int)
+    if resize:
+        scale = resize / max(frame.shape[0], frame.shape[1])
 
-def inference_image(img,detect:Yolov7,pose:Hrnet):
-    det_results = detect.inference(img)
-    pose_results = pose.inference_from_bbox(img,det_results)
-    return pose_results
+       
+        keypoints = (keypoints[..., :2] * scale).astype(int)
+
+        img = cv2.resize(frame, (0, 0), fx=scale, fy=scale)
+    for kpts, score in zip(keypoints, scores):
+        show = [0] * len(kpts)
+        for (u, v), color in zip(skeleton, link_color):
+            if score[u] > thr and score[v] > thr:
+                cv2.line(img, kpts[u], tuple(kpts[v]), palette[color], 1,
+                         cv2.LINE_AA)
+                show[u] = show[v] = 1
+        for kpt, show, color in zip(kpts, show, point_color):
+            if show:
+                cv2.circle(img, kpt, 1, palette[color], 2, cv2.LINE_AA)
+    return img
+
+def inference_image(img,thr=0.7):
+    bboxes,labels,_ = det_model(img)
+    keep = np.logical_and(labels == 0, bboxes[..., 4] >= thr)
+    bboxes = bboxes[keep,:4]
+    poses = pose_model(img,bboxes)
+
     
 class My_GUI(QMainWindow):
     def __init__(self):
@@ -268,8 +275,8 @@ class My_GUI(QMainWindow):
     def image_set(self, image):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         if image.shape[0] > 640:
-            # image = imutils.resize(image, height=640)
-            image = resize_img(image,(640,480))
+            image = imutils.resize(image, height=640)
+            # image = resize_img(image,(640,480))
         # image = resize_img(image,(640,480))
         # self.size_image = image.shape[:2]
         image_Qt = QImage(image, image.shape[1], image.shape[0], image.strides[0], QImage.Format_RGB888)
