@@ -74,7 +74,7 @@ class My_GUI(QMainWindow):
         self.Hrnet.destory()
         self.Yolov7 = Yolov7(engine_path='Pose/yolov7_fp16.trt')
         self.Yolov7.get_fps()
-        self.Hrnet.destory()
+        self.Yolov7.destory()
         # self.det_config = 'Pose/yolox_s_8x8_300e_coco.py'
         # self.det_checkpoint = 'Pose/yolox_s_8x8_300e_coco_20211121_095711-4592a793.pth'
         # self.pose_config = 'Pose/hrnet_w48_coco_256x192.py'
