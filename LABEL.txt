@@ -1,0 +1,8 @@
+0: Stand
+1: Walk
+2: Run
+3: Jump
+4: Fall
+5: Lying
+6: Sit
+7: Get up
