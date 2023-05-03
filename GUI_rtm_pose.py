@@ -15,10 +15,17 @@ import os.path as osp
 import glob
 from Pose.Hrnet import Hrnet
 from Pose.Yolov7 import Yolov7
-det_model = Detector('rtm-pose/rtmdet-nano/','cuda')
-pose_model = PoseDetector('rtm-pose/rtmpose-m/','cuda')
+det_model = Detector('rtmpose-trt/rtmdet-nano/','cuda')
+pose_model = PoseDetector('rtmpose-trt/rtmpose-m/','cuda')
 
-def visualize(frame, keypoints, thr=0.5, resize=None):
+def visualize(frame, anno:dict, thr=0.5, resize=None):
+    if anno is None:
+        if resize:
+            scale = resize / max(frame.shape[0], frame.shape[1])
+            frame = cv2.resize(frame, (0, 0), fx=scale, fy=scale)
+        return frame
+    keypoints = anno['keypoints']
+    bboxes = anno['bbox']
     skeleton = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 12), (5, 11),
                 (6, 12), (5, 6), (5, 7), (6, 8), (7, 9), (8, 10), (1, 2),
                 (0, 1), (0, 2), (1, 3), (2, 4), (3, 5), (4, 6)]
@@ -40,25 +47,52 @@ def visualize(frame, keypoints, thr=0.5, resize=None):
 
        
         keypoints = (keypoints[..., :2] * scale).astype(int)
-
+        for i,b in enumerate(bboxes):
+            bboxes[i] = b*scale
         img = cv2.resize(frame, (0, 0), fx=scale, fy=scale)
-    for kpts, score in zip(keypoints, scores):
+    for kpts, score,bbox in zip(keypoints, scores, bboxes):
         show = [0] * len(kpts)
         for (u, v), color in zip(skeleton, link_color):
             if score[u] > thr and score[v] > thr:
-                cv2.line(img, kpts[u], tuple(kpts[v]), palette[color], 1,
+                cv2.line(img, tuple(kpts[u]), tuple(kpts[v]), palette[color], 1,
                          cv2.LINE_AA)
                 show[u] = show[v] = 1
         for kpt, show, color in zip(kpts, show, point_color):
             if show:
-                cv2.circle(img, kpt, 1, palette[color], 2, cv2.LINE_AA)
+               cv2.circle(img, kpt, 1, palette[color], 2, cv2.LINE_AA)
+        cv2.rectangle(img, (int(bbox[0]), int(bbox[1])),(int(bbox[2]), int(bbox[3])) , (0,255,0), 1)
     return img
 
-def inference_image(img,thr=0.7):
-    bboxes,labels,_ = det_model(img)
-    keep = np.logical_and(labels == 0, bboxes[..., 4] >= thr)
-    bboxes = bboxes[keep,:4]
-    poses = pose_model(img,bboxes)
+def inference_image(img,thr=0.5):
+    bboxes, labels, _ = det_model(img)
+    keep = np.logical_and(labels == 0, bboxes[..., 4] > thr)
+    bboxes = bboxes[keep]
+    if len(bboxes) == 0:
+        return None
+    bbox = bboxes[0,:4]
+    score_det = bboxes[0,4]
+    keypoints = pose_model(img,bbox)
+    anno = dict()
+    anno['bbox'] = [bbox]
+    anno['keypoints'] = keypoints
+    return anno
+    
+def inference_image_multi(img,thr=0.7):
+    bboxes, labels, _ = det_model(img)
+    keep = np.logical_and(labels == 0, bboxes[..., 4] > thr)
+    bboxes = bboxes[keep]
+    if len(bboxes) == 0:
+        return None
+    bbox = []
+    score_det = []
+    for item in bboxes:
+        bbox.append(item[...,:4])
+        score_det.append(item[4])
+    keypoints = pose_model(img,bbox)
+    anno = dict()
+    anno['bbox'] = bbox
+    anno['keypoints'] = keypoints
+    return anno
 
     
 class My_GUI(QMainWindow):
@@ -74,18 +108,19 @@ class My_GUI(QMainWindow):
         self.msg = QMessageBox()
         self.keypoints = []
         self.msg.setWindowTitle('Error')
-        self.path_folder = osp.join('Image', 'img_{:05d}.jpg')
-        self.cnt=0
-        self.Hrnet = Hrnet(engine_path='Pose/Hrnet48_fp32.trt')
-        self.Hrnet.get_fps()
-        self.Hrnet.destory()
-        self.Yolov7 = Yolov7(engine_path='Pose/yolov7_fp16.trt')
-        self.Yolov7.get_fps()
-        self.Hrnet.destory()
+        ### model
+        # self.path_folder = osp.join('Image', 'img_{:05d}.jpg')
+        # self.Hrnet = Hrnet(engine_path='Pose/Hrnet48_fp32.trt')
+        # self.Hrnet.get_fps()
+        # self.Hrnet.destory()
+        # self.Yolov7 = Yolov7(engine_path='Pose/yolov7_fp16.trt')
+        # self.Yolov7.get_fps()
+        # self.Yolov7.destory()
         # self.det_config = 'Pose/yolox_s_8x8_300e_coco.py'
         # self.det_checkpoint = 'Pose/yolox_s_8x8_300e_coco_20211121_095711-4592a793.pth'
         # self.pose_config = 'Pose/hrnet_w48_coco_256x192.py'
         # self.pose_checkpoint = 'Pose/hrnet_w48_coco_256x192-b9e0b3ab_20200708.pth'
+        ####
 
         self.skeleton_edge = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 12),
                                 (5, 11), (6, 12), (5, 6), (5, 7), (6, 8), (7, 9),
@@ -148,8 +183,9 @@ class My_GUI(QMainWindow):
             return
         self.size_image = self.frame_original.shape[:2]
         self.frame_original.flags.writeable = False
-        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
+        pose_result = inference_image(self.frame_original,thr=0.6)
+        # self.skeleton_features = pose_result['keypoints']
+        frame_show = self.vis_pose(self.frame_original, pose_result)
         self.image_set(frame_show)
         #################
         # self.frame_no +=1
@@ -173,9 +209,12 @@ class My_GUI(QMainWindow):
         start = time.time()
         # _, self.pose_result = inference_img(self.det_config, self.det_checkpoint, self.pose_config,
         #                                                   self.pose_checkpoint, self.frame_original)
-        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
+        # self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
+        pose_result = inference_image(self.frame_original)
+        # self.skeleton_features = pose_result['keypoints']
         print(time.time() - start)
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
+        frame_show = self.vis_pose(self.frame_original, pose_result)
+        # frame_show = visualize(self.frame_original,pose_result,resize=640)
         self.image_set(frame_show)
 
     def load_video(self):
@@ -198,9 +237,15 @@ class My_GUI(QMainWindow):
         # self.Label_Img_Show.setPixmap(QPixmap.fromImage(frame_show))
         self.total_frame = int(self.Video.get(cv2.CAP_PROP_FRAME_COUNT))
         # _, self.curr_frame = self.Video.read()
-        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
+        #####################
+        pose_result = inference_image(self.frame_original)
+        frame_show = self.vis_pose(self.frame_original, pose_result)
+        # self.skeleton_features = pose_result['keypoints']
         self.image_set(frame_show)
+        ###################
+        # self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
+        # frame_show = self.vis_pose(self.frame_original, self.pose_result)
+        # self.image_set(frame_show)
         self.slider_frame_no.setRange(0, int(self.total_frame) - 1)
         self.slider_frame_no.setValue(0)
         # self.image_set(self.curr_frame)
@@ -229,47 +274,60 @@ class My_GUI(QMainWindow):
         self.frame_original.flags.writeable = False
         # self.frame_no = value
         self.Text_frame_no.setText(str(value))
-        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
+        # pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
+        pose_result = inference_image(self.frame_original)
+        frame_show = self.vis_pose(self.frame_original, pose_result)
+        # self.skeleton_features = pose_result['keypoints']
         self.image_set(frame_show)
+        ############################
+        # self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
+        # frame_show = self.vis_pose(self.frame_original, self.pose_result)
+        # self.image_set(frame_show)
         # self.Label_Img_Show.setPixmap(QPixmap.fromImage(self.frame_original))
         # self.image_set(frame)
         # self.frame_no_txt.setText(str(value))
         ###################################################
         
-    def vis_pose(self, image, pose_result):
-        bbox = []
-        bbox_score = []
+    def vis_pose(self, image, pose_result,resize=640):
         keypoints = []
-        keypoints_score = []
+        img = visualize(image,pose_result,resize=resize)
         if pose_result is None:
-            return image
-        for pos in pose_result:
-            bbox.append(pos['bbox'][:4])
-            bbox_score.append(pos['bbox'][4])
-            keypoints.append(pos['keypoints'][:,:2])
-            keypoints_score.append(pos['keypoints'][:,2])
-        max_score_indx = np.argmax(bbox_score)
-        bbox = bbox[max_score_indx]
-        keypoints = keypoints[max_score_indx]
-        self.skeleton_features = pose_result[max_score_indx]['keypoints']
-        self.keypoints = keypoints
-        for edge in self.skeleton_edge:
-            start = keypoints[edge[0]]
-            end = keypoints[edge[1]]
-            image = cv2.line(image, (int(start[0]), int(start[1])), (int(end[0]), int(end[1])), (255,255,0), 2)
-        for i in range(17):
-            (x, y) = keypoints[i]
-        #     if self.label[i] == 0:
-        #         color = (255, 255, 255)
-        #     elif self.label[i] == 1:
-        #         color = (0, 0, 255)
-        #     elif self.label[i] == 2:
-        #         color = (255, 0, 0)
-            image = cv2.circle(image, (int(x), int(y)), 4, (255, 255, 255), -1)
+            return img
+        self.skeleton_features = pose_result['keypoints']
+        return img
+        # self.skeleton_features = pose_result['keypoints']
+        # bbox = []
+        # bbox_score = []
+        # keypoints = []
+        # keypoints_score = []
+        # if pose_result is None:
+        #     return image
+        # for pos in pose_result:
+        #     bbox.append(pos['bbox'][:4])
+        #     bbox_score.append(pos['bbox'][4])
+        #     keypoints.append(pos['keypoints'][:,:2])
+        #     keypoints_score.append(pos['keypoints'][:,2])
+        # max_score_indx = np.argmax(bbox_score)
+        # bbox = bbox[max_score_indx]
+        # keypoints = keypoints[max_score_indx]
+        # self.skeleton_features = pose_result[max_score_indx]['keypoints']
+        # self.keypoints = keypoints
+        # for edge in self.skeleton_edge:
+        #     start = keypoints[edge[0]]
+        #     end = keypoints[edge[1]]
+        #     image = cv2.line(image, (int(start[0]), int(start[1])), (int(end[0]), int(end[1])), (255,255,0), 2)
+        # for i in range(17):
+        #     (x, y) = keypoints[i]
+        # #     if self.label[i] == 0:
+        # #         color = (255, 255, 255)
+        # #     elif self.label[i] == 1:
+        # #         color = (0, 0, 255)
+        # #     elif self.label[i] == 2:
+        # #         color = (255, 0, 0)
+        #     image = cv2.circle(image, (int(x), int(y)), 4, (255, 255, 255), -1)
 
-        image = cv2.rectangle(image, (int(bbox[0]), int(bbox[1])),(int(bbox[2]), int(bbox[3])) , (0,255,0), 1)
-        return image
+        # image = cv2.rectangle(image, (int(bbox[0]), int(bbox[1])),(int(bbox[2]), int(bbox[3])) , (0,255,0), 1)
+        # return image
 
 
     def image_set(self, image):

@@ -208,7 +208,7 @@ class ModelSTGCN(nn.Module):
         x = x.view(N , V * C, T)
         x = self.data_bn(x)
         x = x.view(N, V, C, T)
-        x = x.permute(0, 2, 3, 1).contiguous()
+        x = x.permute(0, 2, 3, 1).contiguous() # N C T V
         # x = x.view(N , C, T, V)
         # forwad
         for gcn in (self.st_gcn_networks):
