@@ -98,7 +98,7 @@ class My_GUI(QMainWindow):
         self.btn_load_image.clicked.connect(self.load_image)
         self.btn_save.clicked.connect(self.save)
         self.btn_export.clicked.connect(self.export)
-        # self.btn_detect_vid.clicked.connect(self.detect)
+        self.btn_detect_vid.clicked.connect(self.detect)
         self.btn_remove_list.clicked.connect(self.remove_list)
         self.btn_tolist.clicked.connect(self.save_action)
         self.btn_remove_frame.clicked.connect(self.remove_frame)
@@ -137,13 +137,14 @@ class My_GUI(QMainWindow):
     def detect(self):
         ## detect pose
         # start = time.time()
-        if self.usingimage:
-            return
-        self.size_image = self.frame_original.shape[:2]
-        self.frame_original.flags.writeable = False
-        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
-        frame_show = self.vis_pose(self.frame_original, self.pose_result)
-        self.image_set(frame_show)
+        # if self.usingimage:
+        #     return
+        # self.size_image = self.frame_original.shape[:2]
+        # self.current_frame.flags.writeable = False
+        image = self.current_frame
+        self.pose_result = inference_image(image,self.Yolov7,self.Hrnet)
+        self.current_frame = self.vis_pose(image, self.pose_result)
+        self.image_set(self.current_frame)
         #################
         # self.frame_no +=1
         # frame_path = self.path_folder.format(self.cnt + 1)
@@ -158,10 +159,12 @@ class My_GUI(QMainWindow):
         if len(self.image_path)==0:
             return
         self.frame_original= cv2.imread(self.image_path)
+        self.frame_original = cv2.resize(self.frame_original,(640,480))
+        self.size_image = (self.frame_original.shape[1],self.frame_original.shape[0])
         print(f'Load image from: {self.image_path}')
         self.usingimage=True
-        h,w = self.frame_original.shape[:2]
-        self.size_image = (w,h)
+        # h,w = self.frame_original.shape[:2]
+        # self.size_image = (w,h)
         self.frame_original.flags.writeable = False
         start = time.time()
         # _, self.pose_result = inference_img(self.det_config, self.det_checkpoint, self.pose_config,
@@ -169,6 +172,7 @@ class My_GUI(QMainWindow):
         self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
         print(time.time() - start)
         frame_show = self.vis_pose(self.frame_original, self.pose_result)
+        self.current_frame = frame_show
         self.image_set(frame_show)
 
     def load_video(self):
@@ -185,14 +189,16 @@ class My_GUI(QMainWindow):
         self.usingimage=False
         self.Video = cv2.VideoCapture(self.Video_path)
         _, self.frame_original = self.Video.read()
-        self.size_image = (self.frame_original.shape[1],self.frame_original.shape[0])
         self.frame_original.flags.writeable = False
+        self.frame_original = cv2.resize(self.frame_original,(640,480))
+        self.size_image = (self.frame_original.shape[1],self.frame_original.shape[0])
         # self.image_set(self.frame_original)
         # self.Label_Img_Show.setPixmap(QPixmap.fromImage(frame_show))
         self.total_frame = int(self.Video.get(cv2.CAP_PROP_FRAME_COUNT))
         # _, self.curr_frame = self.Video.read()
         self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
         frame_show = self.vis_pose(self.frame_original, self.pose_result)
+        self.current_frame = frame_show
         self.image_set(frame_show)
         self.slider_frame_no.setRange(0, int(self.total_frame) - 1)
         self.slider_frame_no.setValue(0)
@@ -214,6 +220,8 @@ class My_GUI(QMainWindow):
         ######### MAIN ONE WHEN USE REMOVE ALL COMMENT ALL IN PARAGRAPH  ###########################
         self.Video.set(cv2.CAP_PROP_POS_FRAMES, value)
         _, self.frame_original = self.Video.read()
+        self.frame_original = cv2.resize(self.frame_original,(640,480))
+        # self.size_image = (self.frame_original.shape[1],self.frame_original.shape[0])
         # self.size_image = self.frame_original.shape[:2]
         # _, self.pose_result = inference_img(self.det_config, self.det_checkpoint, self.pose_config,
         #                                                   self.pose_checkpoint, self.frame_original)
@@ -224,6 +232,7 @@ class My_GUI(QMainWindow):
         self.Text_frame_no.setText(str(value))
         self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
         frame_show = self.vis_pose(self.frame_original, self.pose_result)
+        self.current_frame = frame_show
         self.image_set(frame_show)
         # self.Label_Img_Show.setPixmap(QPixmap.fromImage(self.frame_original))
         # self.image_set(frame)
@@ -301,6 +310,7 @@ class My_GUI(QMainWindow):
             self.msg.exec_()
         else:
             pd.to_pickle(self.ano_lst, 'Data/pickle_file/'+file_name)
+            print(f'Succesfully save pickle file')
 
 def main():
     app = QApplication([])
