@@ -49,9 +49,9 @@ def resize_img(img, size, padColor=0):
     scaled_img = cv2.copyMakeBorder(scaled_img, pad_top, pad_bot, pad_left, pad_right, borderType=cv2.BORDER_CONSTANT, value=padColor)
     return scaled_img
 
-def inference_image(img,detect:Yolov7,pose:Hrnet):
-    det_results = detect.inference(img)
-    pose_results = pose.inference_from_bbox(img,det_results)
+def inference_image(img,detect:Yolov7,pose:Hrnet,thr = 0.3):
+    det_results = detect.inference(img,threshold = thr)
+    pose_results = pose.inference_from_bbox(img,det_results,score_threshold = thr)
     return pose_results
     
 class My_GUI(QMainWindow):

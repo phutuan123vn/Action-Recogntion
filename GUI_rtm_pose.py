@@ -63,7 +63,7 @@ def visualize(frame, anno:dict, thr=0.5, resize=None):
         cv2.rectangle(img, (int(bbox[0]), int(bbox[1])),(int(bbox[2]), int(bbox[3])) , (0,255,0), 1)
     return img
 
-def inference_image(img,thr=0.5):
+def inference_image(img,thr=0.2):
     bboxes, labels, _ = det_model(img)
     keep = np.logical_and(labels == 0, bboxes[..., 4] > thr)
     bboxes = bboxes[keep]
@@ -140,7 +140,7 @@ class My_GUI(QMainWindow):
         self.btn_load_image.clicked.connect(self.load_image)
         self.btn_save.clicked.connect(self.save)
         self.btn_export.clicked.connect(self.export)
-        # self.btn_detect_vid.clicked.connect(self.detect)
+        self.btn_detect_vid.clicked.connect(self.detect)
         self.btn_remove_list.clicked.connect(self.remove_list)
         self.btn_tolist.clicked.connect(self.save_action)
         self.btn_remove_frame.clicked.connect(self.remove_frame)
@@ -181,12 +181,23 @@ class My_GUI(QMainWindow):
         # start = time.time()
         if self.usingimage:
             return
-        self.size_image = self.frame_original.shape[:2]
+        # self.size_image = self.frame_original.shape[:2]
         self.frame_original.flags.writeable = False
-        pose_result = inference_image(self.frame_original,thr=0.6)
+        bboxes, labels, _ = det_model(self.frame_original)
+        keep = np.logical_and(labels == 0, bboxes[..., 4] > 0.2)
+        bboxes = bboxes[keep]
+        print(f'BBOX: {bboxes}')
+        if len(bboxes) == 0:
+            return 
+        bbox = bboxes[0,:4]
+        img  = cv2.rectangle(self.frame_original, (int(bbox[0]), int(bbox[1])),(int(bbox[2]), int(bbox[3])) , (0,255,0), 1)
+        self.image_set(img)
+        # pose_result = inference_image(self.frame_original,thr=0.5)
         # self.skeleton_features = pose_result['keypoints']
-        frame_show = self.vis_pose(self.frame_original, pose_result)
-        self.image_set(frame_show)
+        # frame_show = self.vis_pose(self.frame_original, pose_result)
+        # self.image_set(frame_show)
+        #####################
+        
         #################
         # self.frame_no +=1
         # frame_path = self.path_folder.format(self.cnt + 1)
