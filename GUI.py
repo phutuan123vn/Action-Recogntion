@@ -49,9 +49,9 @@ def resize_img(img, size, padColor=0):
     scaled_img = cv2.copyMakeBorder(scaled_img, pad_top, pad_bot, pad_left, pad_right, borderType=cv2.BORDER_CONSTANT, value=padColor)
     return scaled_img
 
-def inference_image(img,detect:Yolov7,pose:Hrnet,thr = 0.3):
-    det_results = detect.inference(img,threshold = thr)
-    pose_results = pose.inference_from_bbox(img,det_results,score_threshold = thr)
+def inference_image(img,detect:Yolov7,pose:Hrnet,thr_det = 0.3,thr_kpt=0.3):
+    det_results = detect.inference(img,threshold = thr_det)
+    pose_results = pose.inference_from_bbox(img,det_results,score_threshold = thr_kpt)
     return pose_results
     
 class My_GUI(QMainWindow):
@@ -67,8 +67,8 @@ class My_GUI(QMainWindow):
         self.msg = QMessageBox()
         self.keypoints = []
         self.msg.setWindowTitle('Error')
-        self.path_folder = osp.join('Image', 'img_{:05d}.jpg')
-        self.cnt=0
+        # self.path_folder = osp.join('Image', 'img_{:05d}.jpg')
+        # self.cnt=0
         self.Hrnet = Hrnet(engine_path='Pose/Hrnet48_fp32.trt')
         self.Hrnet.get_fps()
         self.Hrnet.destory()
@@ -92,6 +92,14 @@ class My_GUI(QMainWindow):
         # self.lst_size = []
         # self.skeleton_features
         # self.LineEdit.setValidator()
+        # thr_accept = QDoubleValidator().setRange(0.00,1.00,2)
+        # thr_accept = QDoubleValidator(0.00,1.00,2)
+        self.det_thr.setValidator(QDoubleValidator(0.00,1.00,2))
+        self.kpt_thr.setValidator(QDoubleValidator(0.00,1.00,2))
+        self.det_thr.editingFinished.connect(lambda widget = self.det_thr: self.changed(widget,0))
+        self.kpt_thr.editingFinished.connect(lambda widget = self.kpt_thr: self.changed(widget,1))
+        # self.det_thr.textChanged.connect(lambda thr = self.det_thr.text(): self.changed(thr,0))
+        # self.kpt_thr.textChanged.connect(lambda thr = self.kpt_thr.text(): self.changed(thr,1))
         self.Label_Edit.setValidator(QIntValidator())
         self.slider_frame_no.valueChanged.connect(self.frame_change)
         self.btn_load_video.clicked.connect(self.load_video)
@@ -102,6 +110,17 @@ class My_GUI(QMainWindow):
         self.btn_remove_list.clicked.connect(self.remove_list)
         self.btn_tolist.clicked.connect(self.save_action)
         self.btn_remove_frame.clicked.connect(self.remove_frame)
+        
+    def changed(self,widget,signal:int):
+        # self.det_value = self.det_thr.text()
+        # self.kpt_value = self.kpt_thr.text()
+        # thr = float(thr)
+        thr = widget.text()
+        thr = float(thr) if thr != '' else 0.5
+        if signal == 1: self.kpt_value = thr
+        else: self.det_value = thr
+        print(f'Signal: {signal}\n Thr:{thr}')
+        
     
     def save_action(self):
         self.label = self.Label_Edit.text()
@@ -163,13 +182,18 @@ class My_GUI(QMainWindow):
         self.size_image = (self.frame_original.shape[1],self.frame_original.shape[0])
         print(f'Load image from: {self.image_path}')
         self.usingimage=True
+        # self.det_value = self.det_thr.text()
+        # self.kpt_value = self.kpt_thr.text()
+        # if self.det_value =="":self.det_value=0.5
+        # if self.kpt_value =="":self.kpt_value=0.5
+        print(f'DET THR: {self.det_value} \t KPT THR: {self.kpt_value}')
         # h,w = self.frame_original.shape[:2]
         # self.size_image = (w,h)
         self.frame_original.flags.writeable = False
         start = time.time()
         # _, self.pose_result = inference_img(self.det_config, self.det_checkpoint, self.pose_config,
         #                                                   self.pose_checkpoint, self.frame_original)
-        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
+        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet,self.det_value,self.kpt_value)
         print(time.time() - start)
         frame_show = self.vis_pose(self.frame_original, self.pose_result)
         self.current_frame = frame_show
@@ -187,6 +211,10 @@ class My_GUI(QMainWindow):
             return
         print(f'Load Video: {self.Video_path}')
         self.usingimage=False
+        # self.det_value = self.det_thr.text()
+        # self.kpt_value = self.kpt_thr.text()
+        # if self.det_value =="":self.det_value=0.5
+        # if self.kpt_value =="":self.kpt_value=0.5
         self.Video = cv2.VideoCapture(self.Video_path)
         _, self.frame_original = self.Video.read()
         self.frame_original.flags.writeable = False
@@ -196,7 +224,7 @@ class My_GUI(QMainWindow):
         # self.Label_Img_Show.setPixmap(QPixmap.fromImage(frame_show))
         self.total_frame = int(self.Video.get(cv2.CAP_PROP_FRAME_COUNT))
         # _, self.curr_frame = self.Video.read()
-        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
+        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet,self.det_value,self.kpt_value)
         frame_show = self.vis_pose(self.frame_original, self.pose_result)
         self.current_frame = frame_show
         self.image_set(frame_show)
@@ -221,6 +249,10 @@ class My_GUI(QMainWindow):
         self.Video.set(cv2.CAP_PROP_POS_FRAMES, value)
         _, self.frame_original = self.Video.read()
         self.frame_original = cv2.resize(self.frame_original,(640,480))
+        # self.det_value = self.det_thr.text()
+        # self.kpt_value = self.kpt_thr.text()
+        # if self.det_value =="":self.det_value=0.5
+        # if self.kpt_value =="":self.kpt_value=0.5
         # self.size_image = (self.frame_original.shape[1],self.frame_original.shape[0])
         # self.size_image = self.frame_original.shape[:2]
         # _, self.pose_result = inference_img(self.det_config, self.det_checkpoint, self.pose_config,
@@ -230,7 +262,7 @@ class My_GUI(QMainWindow):
         self.frame_original.flags.writeable = False
         # self.frame_no = value
         self.Text_frame_no.setText(str(value))
-        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet)
+        self.pose_result = inference_image(self.frame_original,self.Yolov7,self.Hrnet,self.det_value,self.kpt_value)
         frame_show = self.vis_pose(self.frame_original, self.pose_result)
         self.current_frame = frame_show
         self.image_set(frame_show)
