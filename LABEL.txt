@@ -1,8 +1,15 @@
 0: Stand
-1: Walk
-2: Run
+1: Walk done
+2: Run  done
 3: Jump
-4: Fall
-5: Lying
-6: Sit
+4: Fall done
+5: Sit  done
+6: Lying
 7: Get up
+
+
+test
+0: Walk
+1: Run
+2: Fall
+3: Sit

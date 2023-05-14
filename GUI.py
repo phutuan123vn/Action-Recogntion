@@ -88,6 +88,8 @@ class My_GUI(QMainWindow):
         # self.label = None
         self.ano_lst = []
         self.anno = []
+        self.det_value = 0.5
+        self.kpt_value = 0.5
         # self.image_size = []
         # self.lst_size = []
         # self.skeleton_features
@@ -161,7 +163,7 @@ class My_GUI(QMainWindow):
         # self.size_image = self.frame_original.shape[:2]
         # self.current_frame.flags.writeable = False
         image = self.current_frame
-        self.pose_result = inference_image(image,self.Yolov7,self.Hrnet)
+        self.pose_result = inference_image(image,self.Yolov7,self.Hrnet,self.det_value,self.kpt_value)
         self.current_frame = self.vis_pose(image, self.pose_result)
         self.image_set(self.current_frame)
         #################
