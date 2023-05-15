@@ -1,11 +1,11 @@
-0: Stand
+0: Stand done
 1: Walk done
 2: Run  done
-3: Jump
+3: Jump done
 4: Fall done
 5: Sit  done
-6: Lying
-7: Get up
+6: Lying done
+7: Get up done
 
 
 test
