@@ -188,7 +188,7 @@ class My_GUI(QMainWindow):
         # self.kpt_value = self.kpt_thr.text()
         # if self.det_value =="":self.det_value=0.5
         # if self.kpt_value =="":self.kpt_value=0.5
-        print(f'DET THR: {self.det_value} \t KPT THR: {self.kpt_value}')
+        # print(f'DET THR: {self.det_value} \t KPT THR: {self.kpt_value}')
         # h,w = self.frame_original.shape[:2]
         # self.size_image = (w,h)
         self.frame_original.flags.writeable = False
