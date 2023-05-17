@@ -233,10 +233,10 @@ if __name__=='__main__':
     model = ModelSTGCN(3,8)
     model.load_state_dict(torch.load('Checkpoint/Model_best_wts Acc92.pt'))
     model.eval()
-    file = "Train & Val/VAL/WALK/17.mp4"
-    output_name = "Video/OutWalk17.mp4"
-    # file = 'Video_running\Video2.mp4'
-    # output_name = 'Video/OutWalkVideo2.mp4'
+    # file = "Train & Val/VAL/WALK/17.mp4"
+    # output_name = "Video/OutWalk17.mp4"
+    file = 'Video/09.mp4'
+    output_name = 'Video/Out09.mp4'
     model.cuda()
     ActionReg(model=model,file=file,det_score=0.5,
               det_model=det_model,pose_model=pose_model,ouput_name=output_name)
