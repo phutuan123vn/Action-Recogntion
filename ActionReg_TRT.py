@@ -235,8 +235,8 @@ if __name__=='__main__':
     model.eval()
     # file = "Train & Val/VAL/WALK/17.mp4"
     # output_name = "Video/OutWalk17.mp4"
-    file = 'Video/09.mp4'
-    output_name = 'Video/Out09.mp4'
+    file = 'Video/trip1.mp4'
+    output_name = 'Video/OutTrip1.mp4'
     model.cuda()
     ActionReg(model=model,file=file,det_score=0.5,
               det_model=det_model,pose_model=pose_model,ouput_name=output_name)

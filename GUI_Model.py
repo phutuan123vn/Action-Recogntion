@@ -102,14 +102,18 @@ class Pose_detect_thread(QThread):
         self.video.set(cv2.CAP_PROP_POS_FRAMES, 0)
         flag, image = self.video.read()
         while flag:
-
-            # image = resize_image(image)
+            if image.shape[0] > 640:
+                image = resize_image(image)
 
             pose_res = inference_image(image,self.det_model,self.pose_model,self.thr_det,self.thr_pose)
+            if pose_res is not None:
+                pose = pose_res[0]
+            else:
+                pose = pose_results[cnt-1]
 
             cnt += 1
             self.progressing.emit(cnt)
-            pose_results.append(pose_res[0])
+            pose_results.append(pose)
             flag, image = self.video.read()
         time_process = time.time() - start_time
         self.pose_results.emit(pose_results)
@@ -130,7 +134,7 @@ class My_GUI(QMainWindow):
         self.msg.setWindowTitle('Error')
         # self.path_folder = osp.join('Image', 'img_{:05d}.jpg')
         # self.cnt=0
-        self.Hrnet = Hrnet(engine_path='Pose/Hrnet48_fp32.trt')
+        self.Hrnet = Hrnet(engine_path='Pose/Hrnet48_fp16.trt')
         self.Hrnet.get_fps()
         self.Hrnet.destory()
         self.Yolov7 = Yolov7(engine_path='Pose/yolov7_fp16.trt')
@@ -237,6 +241,7 @@ class My_GUI(QMainWindow):
         if len(self.Video_path) == 0:
             return
         self.action_label = None
+        self.pose_results = None
         print(f'Load Video: {self.Video_path}')
         self.usingimage=False
         # self.det_value = self.det_thr.text()
@@ -256,8 +261,10 @@ class My_GUI(QMainWindow):
         if self.checkVis.isChecked():
             frame_show = self.vis_pose(self.frame_original, self.pose_result)
         else:
-            bbox = self.pose_result[0]['bbox']
-            frame_show = cv2.rectangle(self.frame_original, (int(bbox[0]), int(bbox[1])),(int(bbox[2]), int(bbox[3])) , (0,255,0), 1)
+            if self.pose_result is not None:
+                bbox = self.pose_result[0]['bbox']
+                frame_show = cv2.rectangle(self.frame_original, (int(bbox[0]), int(bbox[1])),(int(bbox[2]), int(bbox[3])) , (0,255,0), 1)
+            else: frame_show = self.frame_original
         self.current_frame = frame_show
         self.image_set(frame_show)
         self.slider_frame_no.setRange(0, int(self.total_frame) - 1)
@@ -298,8 +305,10 @@ class My_GUI(QMainWindow):
         if self.checkVis.isChecked():
             frame_show = self.vis_pose(self.frame_original, self.pose_result)
         else:
-            bbox = self.pose_result[0]['bbox']
-            frame_show = cv2.rectangle(self.frame_original, (int(bbox[0]), int(bbox[1])),(int(bbox[2]), int(bbox[3])) , (0,255,0), 1)
+            if self.pose_result is not None:
+                bbox = self.pose_result[0]['bbox']
+                frame_show = cv2.rectangle(self.frame_original, (int(bbox[0]), int(bbox[1])),(int(bbox[2]), int(bbox[3])) , (0,255,0), 1)
+            else: frame_show = self.frame_original
         self.current_frame = frame_show
         self.image_set(frame_show,value)
         # self.Label_Img_Show.setPixmap(QPixmap.fromImage(self.frame_original))
@@ -374,6 +383,7 @@ class My_GUI(QMainWindow):
         return image
     
     def Action_detect(self):
+        if self.pose_results is None:return
         lst_kp = []
         for pose in self.pose_results:
             lst_kp.append(deepcopy(pose['keypoints']))
@@ -383,14 +393,20 @@ class My_GUI(QMainWindow):
         kp[:,:,1] = (kp[:,:,1]-h/2)/(h/2)
         Action_window = np.zeros((1,len(self.pose_results),1))
         for window in range(0,len(self.pose_results),15):
+            left_frame = len(self.pose_results)-30-window
             feature = np.expand_dims(kp[window:window+30],0)
             temp = torch.from_numpy(feature).float().to('cuda')
             outputs = self.Model(temp)
             pred = torch.argmax(outputs,1)
             Action_window[0][window:window+30] = pred.item()
+            if left_frame<30:
+                Action_window[0][window+30:len(self.pose_results)] = pred.item()
+                break
         self.action_label = Action_window[0]
-        print(self.action_label)
-        print(kp)
+        # print(self.action_label)
+        # print(kp)
+        self.msg.setText('Detect Done')
+        self.msg.exec_()
         
         
 def main():
