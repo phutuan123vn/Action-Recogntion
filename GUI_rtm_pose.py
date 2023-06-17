@@ -15,8 +15,8 @@ import os.path as osp
 import glob
 from Pose.Hrnet import Hrnet
 from Pose.Yolov7 import Yolov7
-det_model = Detector('rtmpose-trt/rtmdet-nano/','cuda')
-pose_model = PoseDetector('rtmpose-trt/rtmpose-m/','cuda')
+det_model = Detector('Pose-Estimate/Yolov7-tiny/','cuda')
+pose_model = PoseDetector('Pose-Estimate/HRNet/','cuda')
 
 def visualize(frame, anno:dict, thr=0.5, resize=None):
     if anno is None:
